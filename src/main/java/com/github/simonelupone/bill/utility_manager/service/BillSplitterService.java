@@ -50,32 +50,24 @@ public class BillSplitterService {
                 BillCharges charges = bill.charges();
                 BigDecimal totalKwh = bill.totalKwh();
 
-                // 1. Calculate Tenant Ratio (Avoid division by zero)
                 BigDecimal tenantRatio = BigDecimal.ZERO;
                 if (totalKwh.compareTo(BigDecimal.ZERO) > 0) {
                         tenantRatio = tenantKwh.divide(totalKwh, PERCENTAGE_SCALE, RoundingMode.HALF_UP);
                 }
 
-                // 2. Calculate Variable Share (Energy + Excise/VAT)
-                // Note: As per specs, Excise and VAT are treated as proportional.
                 BigDecimal totalVariableCost = charges.energyVariable().amount()
                                 .add(charges.exciseAndVat().amount());
 
                 BigDecimal tenantVariableShare = totalVariableCost.multiply(tenantRatio);
 
-                // 3. Calculate Fixed Share (Transport Fixed + Power Quota) -> 50% split
                 BigDecimal totalFixedCost = charges.transportFixed().amount()
                                 .add(charges.transportPowerQuota().amount());
 
                 BigDecimal tenantFixedShare = totalFixedCost.divide(BigDecimal.valueOf(2), SCALE, RoundingMode.HALF_UP);
 
-                // 4. Calculate Final Tenant Total
                 BigDecimal tenantTotal = tenantVariableShare.add(tenantFixedShare).setScale(SCALE,
                                 RoundingMode.HALF_UP);
 
-                // 5. Calculate Owner Total (Bill Total - Tenant Total)
-                // The owner absorbs everything else (TV Tax, remaining variable, remaining
-                // fixed, Bonus)
                 BigDecimal billTotal = bill.getTotalAmount();
                 BigDecimal ownerTotal = billTotal.subtract(tenantTotal);
 
